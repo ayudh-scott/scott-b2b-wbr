@@ -1,0 +1,34 @@
+# Deploy Supabase Edge Functions when function code changes or on manual run.
+#
+# Required GitHub secrets:
+#   SUPABASE_ACCESS_TOKEN - Personal access token (Supabase Dashboard → Account → Access Tokens)
+#   SUPABASE_PROJECT_REF  - Project reference ID (e.g. zrwnsitayjtgibgrhkqx from your project URL)
+
+name: Deploy Edge Functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/functions/**"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy Edge Functions
+        run: supabase functions deploy --project-ref $SUPABASE_PROJECT_REF

@@ -1,0 +1,33 @@
+# Sync inventory from external API to Supabase inventory_history table
+# Runs daily and can be triggered manually (workflow_dispatch)
+#
+# Required GitHub secrets:
+#   SUPABASE_URL          - e.g. https://zrwnsitayjtgibgrhkqx.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY - Service role key (Dashboard → Settings → API)
+
+name: Sync inventory
+
+on:
+  schedule:
+    # Daily at 02:00 UTC
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke fetch-inventory Edge Function
+        run: |
+          RESP=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/fetch-inventory" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json")
+          HTTP_BODY=$(echo "$RESP" | head -n -1)
+          HTTP_CODE=$(echo "$RESP" | tail -n 1)
+          echo "Response: $HTTP_BODY"
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "Edge function returned HTTP $HTTP_CODE"
+            exit 1
+          fi
+          echo "success=true" >> $GITHUB_OUTPUT
