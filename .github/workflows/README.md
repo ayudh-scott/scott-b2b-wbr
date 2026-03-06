@@ -5,7 +5,7 @@
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | **deploy-edge-functions** | Push to `main` (when `supabase/functions/**` changes), or manual | Deploys Supabase Edge Functions (e.g. `fetch-inventory`) to your linked project. |
-| **sync-inventory** | Daily at 02:00 UTC, or manual | Invokes the `fetch-inventory` Edge Function to sync inventory from the external API into `inventory_history`. |
+| **sync-inventory** | Daily at 9:00 AM IST (03:30 UTC), or manual | Invokes the `fetch-inventory` Edge Function to sync inventory into `inventory_history`. Retries up to 3 times on 5xx/timeouts; job timeout 10 min. |
 
 ## Required GitHub secrets
 
