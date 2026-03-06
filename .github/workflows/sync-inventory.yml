@@ -1,9 +1,12 @@
 # Sync inventory from external API to Supabase inventory_history table
 # Runs daily and can be triggered manually (workflow_dispatch)
 #
-# Required GitHub secrets:
-#   SUPABASE_URL          - e.g. https://zrwnsitayjtgibgrhkqx.supabase.co
-#   SUPABASE_SERVICE_ROLE_KEY - Service role key (Dashboard → Settings → API)
+# Required GitHub SECRETS (not variables):
+#   SUPABASE_URL              - Project URL, e.g. https://zrwnsitayjtgibgrhkqx.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY  - Service role key from Project → Settings → API (NOT the Account Access Token)
+#
+# Note: SUPABASE_ACCESS_TOKEN is only for the deploy workflow. To invoke this function
+# you must use the project's service_role key from the API settings.
 
 name: Sync inventory
 
@@ -17,17 +20,28 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Invoke fetch-inventory Edge Function
+      - name: Check secrets
         run: |
-          RESP=$(curl -s -w "\n%{http_code}" -X POST \
-            "${{ secrets.SUPABASE_URL }}/functions/v1/fetch-inventory" \
+          if [ -z "${{ secrets.SUPABASE_URL }}" ]; then echo "::error::SUPABASE_URL secret is not set"; exit 1; fi
+          if [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then echo "::error::SUPABASE_SERVICE_ROLE_KEY secret is not set (use Project → Settings → API → service_role key, not Account Access Token)"; exit 1; fi
+          echo "Secrets are set (URL and service_role key present)"
+
+      - name: Invoke fetch-inventory Edge Function
+        id: invoke
+        run: |
+          URL="${{ secrets.SUPABASE_URL }}/functions/v1/fetch-inventory"
+          echo "Calling Edge Function (URL redacted)..."
+          RESP=$(curl -s -D - -w "\n%{http_code}" -X POST "$URL" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            -H "Content-Type: application/json")
-          HTTP_BODY=$(echo "$RESP" | head -n -1)
+            -H "Content-Type: application/json" \
+            --max-time 120) || true
+          # Last line is HTTP code; everything before last newline is headers + body
           HTTP_CODE=$(echo "$RESP" | tail -n 1)
-          echo "Response: $HTTP_BODY"
-          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-            echo "Edge function returned HTTP $HTTP_CODE"
+          HTTP_BODY=$(echo "$RESP" | sed '$d' | sed '1,/^$/d')
+          echo "HTTP status: $HTTP_CODE"
+          echo "Response body: $HTTP_BODY"
+          if [ -z "$HTTP_CODE" ] || [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::fetch-inventory failed with HTTP $HTTP_CODE"
             exit 1
           fi
           echo "success=true" >> $GITHUB_OUTPUT

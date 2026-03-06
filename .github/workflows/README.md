@@ -20,7 +20,9 @@ Add these in **Settings → Secrets and variables → Actions**:
 
 ### Sync inventory
 
+Use **Secrets** (not Variables) so the service role key is not exposed in logs.
+
 | Secret | Where to get it |
 |--------|------------------|
 | `SUPABASE_URL` | Project URL, e.g. `https://zrwnsitayjtgibgrhkqx.supabase.co`. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Dashboard → **Project Settings** → **API** → `service_role` key (keep secret). |
+| `SUPABASE_SERVICE_ROLE_KEY` | In the Supabase Dashboard: your **project** → **Project Settings** → **API** → copy the **`service_role`** key (secret). **Do not** use the Account **Access Token** from Account → Access Tokens; that is only for the deploy workflow. |
